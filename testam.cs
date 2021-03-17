@@ -14,7 +14,6 @@ namespace testam
     /// </summary>
     public class testam : Hyland.Unity.IWorkflowScript
     {
-        
         #region IWorkflowScript
         /// <summary>
         /// Implementation of <see cref="IWorkflowScript.OnWorkflowScriptExecute" />.
@@ -24,77 +23,218 @@ namespace testam
         /// <param name="args"></param>
         public void OnWorkflowScriptExecute(Hyland.Unity.Application app, Hyland.Unity.WorkflowEventArgs args)
         {
-            Document doc = args.Document;	
-			KeywordModifier keyMod = doc.CreateKeywordModifier();
-			string fileNameWithPath =@"\\SomePath\"+ doc.ID+".pcl";
-			if(File.Exists(fileNameWithPath))
+            
+			try
 			{
-				string sAllPCL = File.ReadAllText(fileNameWithPath);
-				string sPCL = sAllPCL;
-				if(sPCL.Length>0)
+				Document doc = args.Document;	
+				string fileNameWithPath =@"\\CORP.3SG.COM\"+ doc.ID+".pcl";
+				if(File.Exists(fileNameWithPath))
 				{
-					int iPos = 0;
-					#region RemarkCodes
-					iPos = sPCL.IndexOf("Remark Codes",0);
-					if(iPos>0)
+					string sAllPCL = File.ReadAllText(fileNameWithPath);
+					
+					if(sAllPCL.Length>0)
 					{
-						sPCL = sPCL.PadRight(sPCL.Length-iPos);
-						bool bRemarks = true;
-						while(bRemarks)
+						int iPos = 0;
+						#region Remark Codes
+						string sPCL = sAllPCL;
+						iPos = sPCL.IndexOf("Remark Codes",0);
+						if(iPos>0)
 						{
-							iPos = sPCL.IndexOf("*p33x",0);
+							sPCL = sPCL.PadRight(sPCL.Length-iPos);
+							bool bRemarks = true;
+							while(bRemarks)
+							{
+								iPos = sPCL.IndexOf("*p33x",0);
+								if(iPos>0)
+								{
+									sPCL = sPCL.PadRight(sPCL.Length-(iPos+9));
+									int iRemarkEndPos = sPCL.IndexOf((char)27);
+									string sRemark = sPCL.PadLeft(iRemarkEndPos-1);	
+									//keyMod.AddKeyword("AR - Error Code",sRemark);
+									ModifyKeywordInCurrentDocument(doc,app,"AR - Error Code",sRemark);
+									//AddKeywordToDocument(doc,"AR - Error Code",sRemark);
+									
+								}
+								else
+									bRemarks=false;
+							}
+						}
+						#endregion
+						
+						#region Payment Information	
+						sPCL = sAllPCL;
+						iPos = sPCL.IndexOf("Payment Information",0);
+						if(iPos>0)
+						{
+							sPCL = sPCL.PadRight(sPCL.Length-iPos);
+							iPos = sPCL.IndexOf((char)27+"*p1308x497YDate: ");
 							if(iPos>0)
 							{
-								sPCL = sPCL.PadRight(sPCL.Length-(iPos+9));
-								int iRemarkEndPos = sPCL.IndexOf((char)27);
-								string sRemark = sPCL.PadLeft(iRemarkEndPos-1);	
-								keyMod.AddKeyword("AR - Error Code",sRemark);
-								//AddKeywordToDocument(doc,"AR - Error Code",sRemark);
+								sPCL = sPCL.PadRight(sPCL.Length - (iPos+17));
+								string paymentDate = sPCL.PadLeft(8);
+								ModifyKeywordInCurrentDocument(doc,app,"AR - Payment Date",paymentDate);
+								//keyMod.AddKeyword("AR - Payment Date",paymentDate);
+							}
+						}
+						#endregion
+						
+						#region Patient ID
+						sPCL = sAllPCL;
+						iPos = sPCL.IndexOf("Patient ID: ");
+						if(iPos>0)
+						{
+							sPCL = sPCL.PadRight(sPCL.Length - (iPos + 11));
+							iPos = sPCL.IndexOf((char)27);
+							if(iPos>0)
+							{
+								string patientID = sPCL.PadLeft(iPos-1).Replace(" ","");
+								ModifyKeywordInCurrentDocument(doc,app,"AR - Patient ID",patientID);
+								//keyMod.AddKeyword("AR - Patient ID",patientID);
+							}
+							
+						}
+						#endregion
+						
+						#region Procedure Code YHC
+						sPCL = sAllPCL;
+						bool bProc = true;
+						while(bProc)
+						{
+							iPos = sPCL.IndexOf("YHC ");
+							if(iPos>0)
+							{
+								sPCL = sPCL.PadRight(sPCL.Length - (iPos+3));
+								int iProcedureYHCPos = sPCL.IndexOf((char)27);
+								string procedureCode =sPCL.PadLeft(iProcedureYHCPos-1);
+								ModifyKeywordInCurrentDocument(doc,app,"AR - Procedure Code",procedureCode);
+								//keyMod.AddKeyword("AR - Procedure Code",procedureCode);
 								
 							}
 							else
-								bRemarks=false;
+								bProc = false;
 						}
+						#endregion
+						
+						#region Procedure Code YNU
+						sPCL = sAllPCL;
+						bProc = true;
+						while(bProc)
+						{
+							iPos = sPCL.IndexOf("YNU ");
+							if(iPos>0)
+							{
+								sPCL = sPCL.PadRight(sPCL.Length-(iPos+3));
+								int iProcedureYNUPos = sPCL.IndexOf((char)27);
+								string procedureCode = sPCL.PadLeft(iProcedureYNUPos-1);
+								ModifyKeywordInCurrentDocument(doc,app,"AR - Procedure Code",procedureCode);
+								
+							}
+							else
+							{
+								bProc = false;
+							}
+						}
+						#endregion
+						
+						#region Check Method
+						sPCL=sAllPCL;
+						iPos = sPCL.IndexOf("Method:");
+						if(iPos>0)
+						{
+							sPCL = sPCL.PadRight(sPCL.Length-(iPos+6));
+							iPos = sPCL.IndexOf((char)27);
+							string checkMethod = sPCL.PadLeft(iPos-1);
+							ModifyKeywordInCurrentDocument(doc,app,"AR - Check Method",checkMethod.Trim());
+						}
+						#endregion
+						
+						#region Check Number
+						sPCL=sAllPCL;
+						iPos = sPCL.IndexOf("Number:");
+						if(iPos>0)
+						{
+							sPCL = sPCL.PadRight(sPCL.Length-(iPos+6));
+							iPos = sPCL.IndexOf((char)27);
+							string checkNumber = sPCL.PadLeft(iPos-1);
+							ModifyKeywordInCurrentDocument(doc,app,"AR - Check Number",checkNumber.Trim());
+						}
+						#endregion
+						
+						#region Check Amount
+						sPCL=sAllPCL;
+						iPos = sPCL.IndexOf("Amount:");
+						if(iPos>0)
+						{
+							sPCL = sPCL.PadRight(sPCL.Length-(iPos+6));
+							iPos = sPCL.IndexOf((char)27);
+							string checkAmount = sPCL.PadLeft(iPos-1);
+							ModifyKeywordInCurrentDocument(doc,app,"AR - Check Amount",checkAmount.Trim());
+						}
+						#endregion
+						
+						#region Carrier Name
+						sPCL=sAllPCL;
+						iPos = sPCL.IndexOf((char)27+"\"E\""+(char)27+"\"%-12345X\""+(char)27+"\"(s1p0.00h14.00v0b61444T\""+(char)27+"\"*p33x25Y\"");
+						if(iPos>0)
+						{
+							sPCL = sPCL.PadRight(sPCL.Length-(iPos+43));
+							iPos = sPCL.IndexOf((char)27);
+							string carrierName = sPCL.PadLeft(iPos-1);
+							ModifyKeywordInCurrentDocument(doc,app,"AR - Carrier Name",carrierName.Trim());
+						}
+						#endregion
 					}
-					#endregion
-					
-					#region Payment Information					
-					#endregion
-					
-					#region Patient ID
-					#endregion
-					
-					#region Procedure Code
-					#endregion
-					
-					#region Check Method
-					#endregion
-					
-					#region Check Number
-					#endregion
-					
-					#region Check Amount
-					#endregion
-					
-					#region Carrier Name
-					#endregion
+					else
+					{
+						app.Diagnostics.Write("File size is zero");
+					}
 				}
 				else
-					app.Diagnostics.Write("File size is zero");
+				{
+					app.Diagnostics.Write("File "+doc.ID+".pcl doesn't exist on the given path");
+				}
+				File.Delete(fileNameWithPath);
 			}
-			else
-				app.Diagnostics.Write("File "+doc.ID+".pcl doesn't exist on the given path");
+			catch(Exception ex)
+			{
+				app.Diagnostics.Write(ex);
+			}
+			
 			
         }
-		private void AddKeywordToDocument(Document doc, string keywordType, string keywordValue)
+		private void ModifyKeywordInCurrentDocument(Document doc, Application app, string keywordType, string keywordValue)
 		{
-			Keyword key = null;
-			KeywordRecordList keyRecList = doc.KeywordRecords;
-			foreach(KeywordRecord keyRec in keyRecList)
+			using(DocumentLock documentLock = doc.LockDocument())
 			{
-				EditableKeywordRecord editKeyRec = keyRec.CreateEditableKeywordRecord();
-				editKeyRec.AddKeyword(keywordType,keywordValue);
+				if(documentLock.Status == DocumentLockStatus.LockObtained)
+				{
+					KeywordModifier keymod = doc.CreateKeywordModifier();
+					KeywordType keyType = app.Core.KeywordTypes.Find(keywordType);
+					KeywordRecord keyRec = doc.KeywordRecords.Find(keyType);
+					KeywordRecordType keyRecType = keyRec.KeywordRecordType;			
+					
+					Keyword newKeyword = keyType.CreateKeyword(keywordValue);
+					
+					if(keyRecType.RecordType== RecordType.MultiInstance)
+					{
+						EditableKeywordRecord editKeyRec = keyRec.CreateEditableKeywordRecord();
+						Keyword keyword = editKeyRec.Keywords.Find(keywordType);
+						editKeyRec.UpdateKeyword(keyword, newKeyword);
+						keymod.AddKeywordRecord(editKeyRec);
+						
+					}
+					else
+					{
+						Keyword keyword = keyRec.Keywords.Find(keywordType);
+						keymod.UpdateKeyword(keyword, newKeyword);
+					}
+					keymod.ApplyChanges();					
+				}
 			}
+			
+			
+			
+			
 		}
         #endregion
     }
