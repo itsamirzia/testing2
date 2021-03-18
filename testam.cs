@@ -7,6 +7,8 @@ namespace testam
     using Hyland.Unity.CodeAnalysis;
     using Hyland.Unity.Workflow;
 	using System.IO;
+	using System.Data;
+	using System.Data.SqlClient;
     
     
     /// <summary>
@@ -14,6 +16,9 @@ namespace testam
     /// </summary>
     public class testam : Hyland.Unity.IWorkflowScript
     {
+		string strAccountNumber = string.Empty;
+		string strPolicy = string.Empty;
+		Application _app = null;
         #region IWorkflowScript
         /// <summary>
         /// Implementation of <see cref="IWorkflowScript.OnWorkflowScriptExecute" />.
@@ -26,174 +31,19 @@ namespace testam
             
 			try
 			{
-				Document doc = args.Document;	
-				string fileNameWithPath =@"\\CORP.3SG.COM\"+ doc.ID+".pcl";
-				if(File.Exists(fileNameWithPath))
+				_app = app;
+				Document doc = args.Document;
+				SetKeywordValues(doc);
+				if(strAccountNumber==string.Empty)
 				{
-					string sAllPCL = File.ReadAllText(fileNameWithPath);
-					
-					if(sAllPCL.Length>0)
+					string connectionString = "Server = EPDW; Database = RGHdw; user=dw; password=dw";
+					string sqlQuery = "select cusnum as AccountNumber from dbo.EdgCusIns (nolock) where policynum = '"+strPolicy+"'";
+					DataTable dt = SelectDataRows(connectionString, sqlQuery);
+					if(dt.Rows.Count>0)
 					{
-						int iPos = 0;
-						#region Remark Codes
-						string sPCL = sAllPCL;
-						iPos = sPCL.IndexOf("Remark Codes",0);
-						if(iPos>0)
-						{
-							sPCL = sPCL.PadRight(sPCL.Length-iPos);
-							bool bRemarks = true;
-							while(bRemarks)
-							{
-								iPos = sPCL.IndexOf("*p33x",0);
-								if(iPos>0)
-								{
-									sPCL = sPCL.PadRight(sPCL.Length-(iPos+9));
-									int iRemarkEndPos = sPCL.IndexOf((char)27);
-									string sRemark = sPCL.PadLeft(iRemarkEndPos-1);	
-									//keyMod.AddKeyword("AR - Error Code",sRemark);
-									ModifyKeywordInCurrentDocument(doc,app,"AR - Error Code",sRemark);
-									//AddKeywordToDocument(doc,"AR - Error Code",sRemark);
-									
-								}
-								else
-									bRemarks=false;
-							}
-						}
-						#endregion
-						
-						#region Payment Information	
-						sPCL = sAllPCL;
-						iPos = sPCL.IndexOf("Payment Information",0);
-						if(iPos>0)
-						{
-							sPCL = sPCL.PadRight(sPCL.Length-iPos);
-							iPos = sPCL.IndexOf((char)27+"*p1308x497YDate: ");
-							if(iPos>0)
-							{
-								sPCL = sPCL.PadRight(sPCL.Length - (iPos+17));
-								string paymentDate = sPCL.PadLeft(8);
-								ModifyKeywordInCurrentDocument(doc,app,"AR - Payment Date",paymentDate);
-								//keyMod.AddKeyword("AR - Payment Date",paymentDate);
-							}
-						}
-						#endregion
-						
-						#region Patient ID
-						sPCL = sAllPCL;
-						iPos = sPCL.IndexOf("Patient ID: ");
-						if(iPos>0)
-						{
-							sPCL = sPCL.PadRight(sPCL.Length - (iPos + 11));
-							iPos = sPCL.IndexOf((char)27);
-							if(iPos>0)
-							{
-								string patientID = sPCL.PadLeft(iPos-1).Replace(" ","");
-								ModifyKeywordInCurrentDocument(doc,app,"AR - Patient ID",patientID);
-								//keyMod.AddKeyword("AR - Patient ID",patientID);
-							}
-							
-						}
-						#endregion
-						
-						#region Procedure Code YHC
-						sPCL = sAllPCL;
-						bool bProc = true;
-						while(bProc)
-						{
-							iPos = sPCL.IndexOf("YHC ");
-							if(iPos>0)
-							{
-								sPCL = sPCL.PadRight(sPCL.Length - (iPos+3));
-								int iProcedureYHCPos = sPCL.IndexOf((char)27);
-								string procedureCode =sPCL.PadLeft(iProcedureYHCPos-1);
-								ModifyKeywordInCurrentDocument(doc,app,"AR - Procedure Code",procedureCode);
-								//keyMod.AddKeyword("AR - Procedure Code",procedureCode);
-								
-							}
-							else
-								bProc = false;
-						}
-						#endregion
-						
-						#region Procedure Code YNU
-						sPCL = sAllPCL;
-						bProc = true;
-						while(bProc)
-						{
-							iPos = sPCL.IndexOf("YNU ");
-							if(iPos>0)
-							{
-								sPCL = sPCL.PadRight(sPCL.Length-(iPos+3));
-								int iProcedureYNUPos = sPCL.IndexOf((char)27);
-								string procedureCode = sPCL.PadLeft(iProcedureYNUPos-1);
-								ModifyKeywordInCurrentDocument(doc,app,"AR - Procedure Code",procedureCode);
-								
-							}
-							else
-							{
-								bProc = false;
-							}
-						}
-						#endregion
-						
-						#region Check Method
-						sPCL=sAllPCL;
-						iPos = sPCL.IndexOf("Method:");
-						if(iPos>0)
-						{
-							sPCL = sPCL.PadRight(sPCL.Length-(iPos+6));
-							iPos = sPCL.IndexOf((char)27);
-							string checkMethod = sPCL.PadLeft(iPos-1);
-							ModifyKeywordInCurrentDocument(doc,app,"AR - Check Method",checkMethod.Trim());
-						}
-						#endregion
-						
-						#region Check Number
-						sPCL=sAllPCL;
-						iPos = sPCL.IndexOf("Number:");
-						if(iPos>0)
-						{
-							sPCL = sPCL.PadRight(sPCL.Length-(iPos+6));
-							iPos = sPCL.IndexOf((char)27);
-							string checkNumber = sPCL.PadLeft(iPos-1);
-							ModifyKeywordInCurrentDocument(doc,app,"AR - Check Number",checkNumber.Trim());
-						}
-						#endregion
-						
-						#region Check Amount
-						sPCL=sAllPCL;
-						iPos = sPCL.IndexOf("Amount:");
-						if(iPos>0)
-						{
-							sPCL = sPCL.PadRight(sPCL.Length-(iPos+6));
-							iPos = sPCL.IndexOf((char)27);
-							string checkAmount = sPCL.PadLeft(iPos-1);
-							ModifyKeywordInCurrentDocument(doc,app,"AR - Check Amount",checkAmount.Trim());
-						}
-						#endregion
-						
-						#region Carrier Name
-						sPCL=sAllPCL;
-						iPos = sPCL.IndexOf((char)27+"\"E\""+(char)27+"\"%-12345X\""+(char)27+"\"(s1p0.00h14.00v0b61444T\""+(char)27+"\"*p33x25Y\"");
-						if(iPos>0)
-						{
-							sPCL = sPCL.PadRight(sPCL.Length-(iPos+43));
-							iPos = sPCL.IndexOf((char)27);
-							string carrierName = sPCL.PadLeft(iPos-1);
-							ModifyKeywordInCurrentDocument(doc,app,"AR - Carrier Name",carrierName.Trim());
-						}
-						#endregion
-					}
-					else
-					{
-						app.Diagnostics.Write("File size is zero");
+						ModifyKeywordInCurrentDocument(doc,"AR - Account Number",dt.Rows[0][0].ToString());
 					}
 				}
-				else
-				{
-					app.Diagnostics.Write("File "+doc.ID+".pcl doesn't exist on the given path");
-				}
-				File.Delete(fileNameWithPath);
 			}
 			catch(Exception ex)
 			{
@@ -202,39 +52,87 @@ namespace testam
 			
 			
         }
-		private void ModifyKeywordInCurrentDocument(Document doc, Application app, string keywordType, string keywordValue)
+		private void ModifyKeywordInCurrentDocument(Document doc, string keywordType, string keywordValue)
 		{
 			using(DocumentLock documentLock = doc.LockDocument())
 			{
 				if(documentLock.Status == DocumentLockStatus.LockObtained)
 				{
 					KeywordModifier keymod = doc.CreateKeywordModifier();
-					KeywordType keyType = app.Core.KeywordTypes.Find(keywordType);
-					KeywordRecord keyRec = doc.KeywordRecords.Find(keyType);
-					KeywordRecordType keyRecType = keyRec.KeywordRecordType;			
-					
-					Keyword newKeyword = keyType.CreateKeyword(keywordValue);
-					
-					if(keyRecType.RecordType== RecordType.MultiInstance)
+					KeywordType keyType = _app.Core.KeywordTypes.Find(keywordType);
+					if(keyType == null)
 					{
-						EditableKeywordRecord editKeyRec = keyRec.CreateEditableKeywordRecord();
-						Keyword keyword = editKeyRec.Keywords.Find(keywordType);
-						editKeyRec.UpdateKeyword(keyword, newKeyword);
-						keymod.AddKeywordRecord(editKeyRec);
+						keymod.AddKeyword(keywordType,keywordValue);		
 						
 					}
 					else
 					{
-						Keyword keyword = keyRec.Keywords.Find(keywordType);
-						keymod.UpdateKeyword(keyword, newKeyword);
+						KeywordRecord keyRec = doc.KeywordRecords.Find(keyType);
+						KeywordRecordType keyRecType = keyRec.KeywordRecordType;			
+						
+						Keyword newKeyword = keyType.CreateKeyword(keywordValue);
+						
+						if(keyRecType.RecordType== RecordType.MultiInstance)
+						{
+							EditableKeywordRecord editKeyRec = keyRec.CreateEditableKeywordRecord();
+							Keyword keyword = editKeyRec.Keywords.Find(keywordType);
+							editKeyRec.UpdateKeyword(keyword, newKeyword);
+							keymod.AddKeywordRecord(editKeyRec);
+							
+						}
+						else
+						{
+							Keyword keyword = keyRec.Keywords.Find(keywordType);
+							keymod.UpdateKeyword(keyword, newKeyword);
+						}
 					}
 					keymod.ApplyChanges();					
 				}
 			}
-			
-			
-			
-			
+		}
+		private void SetKeywordValues(Document document)
+		{
+			try
+		   	{
+		   		foreach(KeywordRecord keywordRecord in document.KeywordRecords)
+		        {
+		        	foreach(Keyword keyword in keywordRecord.Keywords)
+		            {
+		            	switch (keyword.KeywordType.Name)
+		                {
+		                    case "AR - Account Number":
+		                        strAccountNumber = keyword.IsBlank ? string.Empty : keyword.Value.ToString();
+		                        break;
+							case "AR - Patient ID":
+		                        strPolicy = keyword.IsBlank ? string.Empty : keyword.Value.ToString();
+		                        break;
+						}
+					}
+				}
+		   }
+		   catch(Exception ex)
+		   {
+		   		_app.Diagnostics.Write(ex);
+		   }
+		}
+		private DataTable SelectDataRows(string dbConnectionString,string queryString)
+		{
+			DataTable dt = new DataTable();
+			try
+			{
+				using (SqlConnection connection =  new SqlConnection(dbConnectionString))
+			    {
+			        SqlDataAdapter adapter = new SqlDataAdapter();
+			        adapter.SelectCommand = new SqlCommand(queryString, connection);
+			        adapter.Fill(dt);
+			    }
+			}
+			catch(Exception ex)
+			{
+				_app.Diagnostics.Write("Error while fetching records Method: SelectDataRows ");
+				_app.Diagnostics.Write(ex);
+			}
+			return dt;
 		}
         #endregion
     }
