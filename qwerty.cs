@@ -7,16 +7,18 @@ namespace testam
     using Hyland.Unity.CodeAnalysis;
     using Hyland.Unity.Workflow;
 	using System.IO;
+	using System.Data;
+	using System.Data.SqlClient;
     
     
     /// <summary>
     /// testam
     /// </summary>
-    public class testam : Hyland.Unity.IWorkflowScript
+    public class testam2 : Hyland.Unity.IWorkflowScript
     {
-		bool foundUnparsedBarcode = false;
-		
-		Hyland.Unity.Application _app = null;
+		string strAccountNumber = string.Empty;
+		string strPolicy = string.Empty;
+		Application _app = null;
         #region IWorkflowScript
         /// <summary>
         /// Implementation of <see cref="IWorkflowScript.OnWorkflowScriptExecute" />.
@@ -26,150 +28,30 @@ namespace testam
         /// <param name="args"></param>
         public void OnWorkflowScriptExecute(Hyland.Unity.Application app, Hyland.Unity.WorkflowEventArgs args)
         {
-			//string sTimeStamp = string.Empty;
-			Document doc = args.Document;
+            
 			try
-		   	{
-		   		foreach(KeywordRecord keywordRecord in doc.KeywordRecords)
-		        {
-		        	foreach(Keyword keyword in keywordRecord.Keywords)
-		            {
-		            	switch (keyword.KeywordType.Name)
-		                {
-							case "AR - Unparsed Barcode":
-								foundUnparsedBarcode = true;
-								string sAcctNum = string.Empty;
-								string sOrderNum = string.Empty;
-								string sStartDate = string.Empty;
-								string sScriptType = string.Empty;
-								string sDateOfService = string.Empty;
-								string sCreationDate = string.Empty;
-								string sMiscDocType = string.Empty;
-								string sPage = string.Empty;
-								string sPageO = string.Empty;
-								string sBarcode = keyword.Value.ToString();
-								string sDocTypeNum = string.Empty;
-								if(sBarcode.Length>0)
-								{
-									sDocTypeNum = sBarcode.Substring(1,4);
-									switch(sDocTypeNum)
-									{
-										case "0102":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-7);
-											break;
-										case "0104":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-15);
-											sCreationDate=sBarcode.Substring(7,2)+"-"+sBarcode.Substring(9,2)+"-"+sBarcode.Substring(11,4);
-											
-											if(!IsDate(sCreationDate))
-												sCreationDate="";
-																						
-											break;
-										case "0106":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-7);
-											break;
-										case "0107":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-16);
-											sStartDate=sBarcode.Substring(8,2)+"-"+sBarcode.Substring(10,2)+"-"+sBarcode.Substring(12,4);
-											
-											if(!IsDate(sStartDate))
-												sStartDate="";
-											sScriptType = sBarcode.Substring(7,1);
-											break;
-										case "0108":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-15);
-											sStartDate=sBarcode.Substring(7,2)+"-"+sBarcode.Substring(9,2)+"-"+sBarcode.Substring(11,4);
-											if(!IsDate(sStartDate))
-												sStartDate="";
-											break;
-										case "0117":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-15);
-											sStartDate=sBarcode.Substring(7,2)+"-"+sBarcode.Substring(9,2)+"-"+sBarcode.Substring(11,4);
-											if(!IsDate(sStartDate))
-												sStartDate="";
-											if(sStartDate.Substring(0,1)=="2")
-												sStartDate=sBarcode.Substring(11,2)+"-"+sBarcode.Substring(13,2)+"-"+sBarcode.Substring(7,4);
-											break;
-										case "0118":
-										case "0119":
-										case "0121":
-										case "0122":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-7);
-											break;
-										case "0139":
-											sMiscDocType = sBarcode.Substring(7,1);
-											sPage = sBarcode.Substring(5,1);
-											sPageO = sBarcode.Substring(6,1);
-											sAcctNum = sBarcode.Substring(sBarcode.Length-8);
-											break;
-										case "0286":
-											sAcctNum = sBarcode.Substring(sBarcode.Length-22);
-											sOrderNum = sBarcode.Substring(15,7);
-											sDateOfService=sBarcode.Substring(11,2)+"-"+sBarcode.Substring(13,2)+"-"+sBarcode.Substring(7,4);
-											if(!IsDate(sDateOfService))
-												sDateOfService="";
-											break;
-									}
-									if(sAcctNum != string.Empty)
-										ModifyKeywordInCurrentDocument(doc,"AR - Account Number",sAcctNum);
-									if(sOrderNum != string.Empty)
-										ModifyKeywordInCurrentDocument(doc,"AR - Order Number",sOrderNum);
-									if(sStartDate != string.Empty)
-										ModifyKeywordInCurrentDocument(doc,"AR - Start Date",sStartDate);
-									if(sScriptType != string.Empty)
-										ModifyKeywordInCurrentDocument(doc,"AR - Script Type",sScriptType);
-									if(sDateOfService != string.Empty)
-										ModifyKeywordInCurrentDocument(doc,"AR - Date of Service",sDateOfService);
-									if(sCreationDate != string.Empty)
-										ModifyKeywordInCurrentDocument(doc,"AR - Creation Date",sCreationDate);
-									if(sMiscDocType != string.Empty)
-									{
-										string sParsedType = string.Empty;
-										if(sMiscDocType=="5")
-											sParsedType="5 - MEDICAL INFORMATION";
-										ModifyKeywordInCurrentDocument(doc,"AR - Misc Doc Type",sParsedType);
-										
-									}
-									
-									
-								}
-								
-								break;
-							
-		                   
-						}
-						if(foundUnparsedBarcode)
-							break;
+			{
+				_app = app;
+				Document doc = args.Document;
+				SetKeywordValues(doc);
+				if(strAccountNumber==string.Empty)
+				{
+					string connectionString = "Server = EPDW; Database = RGHdw; user=dw; password=dw";
+					string sqlQuery = "select cusnum as AccountNumber from dbo.EdgCusIns (nolock) where policynum = '"+strPolicy+"'";
+					DataTable dt = SelectDataRows(connectionString, sqlQuery);
+					if(dt.Rows.Count>0)
+					{
+						ModifyKeywordInCurrentDocument(doc,"AR - Account Number",dt.Rows[0][0].ToString());
 					}
 				}
-		   }
-		   catch(Exception ex)
-		   {
-		   		_app.Diagnostics.Write(ex);
-		   }
+			}
+			catch(Exception ex)
+			{
+				app.Diagnostics.Write(ex);
+			}
+			
 			
         }
-		private bool IsDate(string dateFormat)
-		{
-			try
-			{
-				int month = Convert.ToInt32(dateFormat.Substring(0,2));
-				int day = Convert.ToInt32(dateFormat.Substring(3,2));
-				string year = dateFormat.Substring(7,4);
-				if(( month < 0 && month > 12) || (day <1 && day>31)||(year.Length != 4))
-				{
-					return false;
-				}
-				else
-				{
-					return  true;
-				}
-			}
-			catch
-			{
-				return false;
-			}
-		}
 		private void ModifyKeywordInCurrentDocument(Document doc, string keywordType, string keywordValue)
 		{
 			using(DocumentLock documentLock = doc.LockDocument())
@@ -180,7 +62,7 @@ namespace testam
 					KeywordType keyType = _app.Core.KeywordTypes.Find(keywordType);
 					if(keyType == null)
 					{
-						_app.Diagnostics.Write(keywordType +" Keyword Type Not Found");
+						keymod.AddKeyword(keywordType,keywordValue);		
 						
 					}
 					else
@@ -208,8 +90,50 @@ namespace testam
 				}
 			}
 		}
-		
-		
+		private void SetKeywordValues(Document document)
+		{
+			try
+		   	{
+		   		foreach(KeywordRecord keywordRecord in document.KeywordRecords)
+		        {
+		        	foreach(Keyword keyword in keywordRecord.Keywords)
+		            {
+		            	switch (keyword.KeywordType.Name)
+		                {
+		                    case "AR - Account Number":
+		                        strAccountNumber = keyword.IsBlank ? string.Empty : keyword.Value.ToString();
+		                        break;
+							case "AR - Patient ID":
+		                        strPolicy = keyword.IsBlank ? string.Empty : keyword.Value.ToString();
+		                        break;
+						}
+					}
+				}
+		   }
+		   catch(Exception ex)
+		   {
+		   		_app.Diagnostics.Write(ex);
+		   }
+		}
+		private DataTable SelectDataRows(string dbConnectionString,string queryString)
+		{
+			DataTable dt = new DataTable();
+			try
+			{
+				using (SqlConnection connection =  new SqlConnection(dbConnectionString))
+			    {
+			        SqlDataAdapter adapter = new SqlDataAdapter();
+			        adapter.SelectCommand = new SqlCommand(queryString, connection);
+			        adapter.Fill(dt);
+			    }
+			}
+			catch(Exception ex)
+			{
+				_app.Diagnostics.Write("Error while fetching records Method: SelectDataRows ");
+				_app.Diagnostics.Write(ex);
+			}
+			return dt;
+		}
         #endregion
     }
 }
