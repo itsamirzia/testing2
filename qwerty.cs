@@ -20,7 +20,8 @@ namespace testam
 		Application _app = null;
 		string sAcctNum = string.Empty;
 		string sBarcode = string.Empty;
-		
+		bool foundUnparsedBarcode = false;
+		bool foundARAccountNum = false;
         #region IWorkflowScript
         /// <summary>
         /// Implementation of <see cref="IWorkflowScript.OnWorkflowScriptExecute" />.
@@ -33,59 +34,24 @@ namespace testam
             
 			try
 			{
+				string sDocTypeNum = string.Empty;
+				string sPages = string.Empty;
+				int sBarcodeLen = 0;
 				_app = app;
 				Document doc = args.Document;
-				long sDocumentHandle = doc.ID;
-				string sFileName = sDocumentHandle+".xml";
-				string sFilePath = @"\\CORP.RGHENT.COM\ONB\PRD_SRC\Temp\";
-				string sXML = File.ReadAllText(sFilePath+sFileName);
-				string sDate = string.Empty;
-				bool bValidate = true;
-				string sDOS = string.Empty;
-				int Month = 0;
-				int Day = 0;
-				int Year = 0;
-				
-				int iPos =0;
-				iPos = sXML.IndexOf("<DTP03>",0);
-				if(iPos>0)
+				SetKeywordValues(doc);
+				if(sBarcode.Length>0)
 				{
-					sDate = sXML.Substring(iPos+7,8);
+					sDocTypeNum = sBarcode.Substring(1,4);
+					sPages = sBarcode.Substring(5,2);
+					sBarcodeLen = sBarcode.Length;
+					sAcctNum = sBarcode.Substring(7);
+					foundUnparsedBarcode = true;
+
 				}
-				if(sDate != string.Empty)
+				if(foundUnparsedBarcode)
 				{
-					string yyyy = sDate.Substring(0,4);
-					string mm = sDate.Substring(4,2);
-					string dd = sDate.Substring(6,2);
-					
-					int.TryParse(mm, out Month);
-					int.TryParse(dd, out Day);
-					int.TryParse(yyyy, out Year);
-					
-					if(Month == 0 || Day == 0 || Year == 0)
-						bValidate = false;
-					if(Month>12)
-						bValidate = false;
-					if(Day>31)
-						bValidate = false;
-					if(Day > 29 && Month ==2)
-						bValidate = false;
-					if(Day==29 && Month ==2)
-					{
-						if((Year%4 != 0)||(Year%100==0 && Year%400 !=0))
-							bValidate = false;
-					}
-					if((Day==31)&&(Month ==2 || Month==4 || Month==6 || Month==9 || Month==11))
-						bValidate = false;
-				}
-				
-				if(bValidate)
-				{
-					sDOS = Month+"/"+Day+"/"+Year;
-				}
-				if(IsDate(sDOS))
-				{
-					ModifyKeywordInCurrentDocument(doc,"AR - Date of Service",sDOS);
+					ModifyKeywordInCurrentDocument(doc, "AR - Account Number", sAcctNum);
 				}
 				
 			}
@@ -96,27 +62,7 @@ namespace testam
 			
 			
         }
-		private bool IsDate(string dateFormat)
-		{
-			try
-			{
-				int month = Convert.ToInt32(dateFormat.Substring(0,2));
-				int day = Convert.ToInt32(dateFormat.Substring(3,2));
-				string year = dateFormat.Substring(6,4);
-				if(( month < 0 && month > 12) || (day <1 && day>31)||(year.Length != 4))
-				{
-					return false;
-				}
-				else
-				{
-					return  true;
-				}
-			}
-			catch
-			{
-				return false;
-			}
-		}
+		
 		private void ModifyKeywordInCurrentDocument(Document doc, string keywordType, string keywordValue)
 		{
 			using(DocumentLock documentLock = doc.LockDocument())
@@ -141,7 +87,15 @@ namespace testam
 						{
 							EditableKeywordRecord editKeyRec = keyRec.CreateEditableKeywordRecord();
 							Keyword keyword = editKeyRec.Keywords.Find(keywordType);
-							editKeyRec.UpdateKeyword(keyword, newKeyword);
+							if(keyword != null)
+							{
+								editKeyRec.UpdateKeyword(keyword, newKeyword);
+							}
+							else
+							{
+								editKeyRec.AddKeyword(keywordType, keywordValue);
+							}
+							
 							keymod.AddKeywordRecord(editKeyRec);
 							
 						}
@@ -158,7 +112,32 @@ namespace testam
 				}
 			}
 		}
-		
+		private void SetKeywordValues(Document document)
+		{
+			try
+		   	{
+		   		foreach(KeywordRecord keywordRecord in document.KeywordRecords)
+		        {
+		        	foreach(Keyword keyword in keywordRecord.Keywords)
+		            {
+		            	switch (keyword.KeywordType.Name)
+		                {
+							case "AR - Unparsed Barcode":
+								sBarcode = keyword.IsBlank? string.Empty: keyword.Value.ToString();
+								break;
+							case "AR - Account Number":
+								foundARAccountNum = true;
+								break;
+		                    
+						}
+					}
+				}
+		   }
+		   catch(Exception ex)
+		   {
+		   		_app.Diagnostics.Write(ex);
+		   }
+		}
 		
         #endregion
     }
