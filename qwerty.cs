@@ -18,10 +18,16 @@ namespace testam
     {
 
 		Application _app = null;
-		string sAcctNum = string.Empty;
-		string sBarcode = string.Empty;
-		bool foundUnparsedBarcode = false;
-		bool foundARAccountNum = false;
+		string sAccount = string.Empty;
+		string sPatientAuthSignedDt = string.Empty;
+		string sPatientAuthSignedUser = string.Empty;
+		string sPatientAuthToRGH = string.Empty;
+		string sPatientAuthMMDDYYYY = string.Empty;
+		bool foundAccount = false;
+		bool foundPatientAuthSignedDt = false;
+		bool foundPatientAuthSignedUser = false;
+		bool foundPatientAuthToRGH = false;
+		
         #region IWorkflowScript
         /// <summary>
         /// Implementation of <see cref="IWorkflowScript.OnWorkflowScriptExecute" />.
@@ -34,24 +40,18 @@ namespace testam
             
 			try
 			{
-				string sDocTypeNum = string.Empty;
-				string sPages = string.Empty;
-				int sBarcodeLen = 0;
 				_app = app;
 				Document doc = args.Document;
 				SetKeywordValues(doc);
-				if(sBarcode.Length>0)
+				if(foundAccount && foundPatientAuthSignedDt && foundPatientAuthSignedUser)
 				{
-					sDocTypeNum = sBarcode.Substring(1,4);
-					sPages = sBarcode.Substring(5,2);
-					sBarcodeLen = sBarcode.Length;
-					sAcctNum = sBarcode.Substring(7);
-					foundUnparsedBarcode = true;
-
-				}
-				if(foundUnparsedBarcode)
-				{
-					ModifyKeywordInCurrentDocument(doc, "AR - Account Number", sAcctNum);
+					string sTimeStamp = System.DateTime.Now.ToString("MMddyyyyHHmmss");
+					string oFilePath = @"Cardinalhealthy.net\applications\EC500\ONB\PRD_SRC\BXOEXP\MR\PatientAuth\";
+					string oFileName = "PatientAuth"+"_"+sAccount+"_"+sTimeStamp+".txt";
+					string oFilePathName = oFilePath+oFileName;
+					string oPatientInfo = sAccount+"|"+sPatientAuthMMDDYYYY+"|"+sPatientAuthSignedUser;
+					File.AppendAllText(oFilePathName, oPatientInfo);
+					ModifyKeywordInCurrentDocument(doc, "MR - Patient Auth RGH File",oFilePathName);
 				}
 				
 			}
@@ -122,11 +122,24 @@ namespace testam
 		            {
 		            	switch (keyword.KeywordType.Name)
 		                {
-							case "AR - Unparsed Barcode":
-								sBarcode = keyword.IsBlank? string.Empty: keyword.Value.ToString();
+							case "Account # A":
+								sAccount = keyword.IsBlank? string.Empty: keyword.Value.ToString().Trim();
+								foundAccount=true;
 								break;
-							case "AR - Account Number":
-								foundARAccountNum = true;
+							case "MR - Patient Auth Signed Date":
+								sPatientAuthSignedDt = keyword.IsBlank? string.Empty: keyword.Value.ToString().Trim();
+								string sPatientAuthSignedDtOnly = sPatientAuthSignedDt.Substring(0,Math.Min(10,sPatientAuthSignedDt.Length));
+								string[] sSplit = sPatientAuthSignedDtOnly.Split('-');
+								sPatientAuthMMDDYYYY = sSplit[1] +"/" + sSplit[2] + "/" + sSplit[0];
+								foundPatientAuthSignedDt = true;
+								break;
+							case "MR - Patient Auth Signed User":
+								sPatientAuthSignedUser = keyword.IsBlank? string.Empty: keyword.Value.ToString().Trim();
+								foundPatientAuthSignedUser = true;
+								break;
+							case "MR - Patient Auth RGH File":
+								sPatientAuthToRGH = keyword.IsBlank? string.Empty: keyword.Value.ToString().Trim();
+								foundPatientAuthToRGH = true;
 								break;
 		                    
 						}
