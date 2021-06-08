@@ -1,0 +1,7 @@
+Confluent.Kafka.dll
+librdkafka.dll
+librdkafkacpp.dll
+libzstd.dll
+msvcp120.dll
+msvcr120.dll
+zlib.dll
