@@ -1,1 +1,51 @@
-test
+ static void Main(string[] args)
+        {
+            StringBuilder sblogs = new StringBuilder();
+            string fromPath =ConfigurationManager.AppSettings["fromLocation"].ToString();
+            string toPath = ConfigurationManager.AppSettings["toLocation"].ToString();
+            string fileType =ConfigurationManager.AppSettings["fileType"].ToString();
+            int noOfFile = Convert.ToInt32(ConfigurationManager.AppSettings["noOfFileInIteration"].ToString());
+            string[] files = Directory.GetFiles(fromPath,fileType);
+            int counter = 0;
+            foreach (string file in files)
+            {
+                if (counter < noOfFile)
+                {
+                    if (fileType.ToUpper() == "*.ZIP")
+                    {
+                        sblogs.AppendLine("New File Extracted"+file);
+                        string temppath = toPath + System.DateTime.Now.ToString("MMddyyyyHHmmss")+"\\";
+                        if (!Directory.Exists(temppath))
+                            Directory.CreateDirectory(temppath);
+                        ZipFile.ExtractToDirectory(file, temppath);
+                        MoveFile(temppath, toPath, "*.PDF");
+                        Directory.Delete(temppath, true);
+                        File.Delete(file);
+                    }
+                    else
+                    {
+                        File.Move(file, toPath + GetFileName(file));
+                    }
+                }
+                counter++;
+            }
+
+        }
+        private static void MoveFile(string fromFolder, string toFolder, string pattern)
+        {
+            string[] files = Directory.GetFiles(fromFolder, pattern);
+            foreach (string file in files)
+            {
+                File.Move(file, toFolder + GetFileName(file));
+            }
+            string[] directories = Directory.GetDirectories(fromFolder);
+            foreach (string dir in directories)
+            {
+                MoveFile(dir, toFolder, pattern);
+            }
+        }
+        private static string GetFileName(string filenamepath)
+        {
+            string filename = filenamepath.Substring(filenamepath.LastIndexOf('\\')+1);
+            return filename;
+        }
