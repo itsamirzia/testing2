@@ -33,41 +33,43 @@ namespace testam1
          	args.SessionPropertyBag.TryGetValue("propPriKey", out priKey);
 			args.SessionPropertyBag.TryGetValue("propSecKey", out secKey);
 			Document doc = args.Document;
-			DocumentType docType = doc.DocumentType;
+			long primaryDocHandle = doc.ID;
 			SetKeywordValues(doc);
-			DocumentQuery docQuery = app.Core.CreateDocumentQuery();
-			docQuery.AddDocumentType(docType);
 			
-			KeywordType keyType = app.Core.KeywordTypes.Find(priKey);
-			Keyword priKeyword = keyType.CreateKeyword(priVal);
+			DocumentType dt1 = app.Core.DocumentTypes.Find("MIKG Doc Type");
+			
+			DocumentQuery docQuery = app.Core.CreateDocumentQuery();
+			docQuery.AddDocumentType(dt1);
+			
+			KeywordType priKeyType = app.Core.KeywordTypes.Find(priKey);
+			Keyword priKeyword = priKeyType.CreateKeyword(priVal);
+			
+			KeywordType secKeyType = app.Core.KeywordTypes.Find(secKey);
+			Keyword secKeyword = secKeyType.CreateKeyword(secVal);
 			
 			docQuery.AddKeyword(priKeyword);
 			
-			DocumentList docList = docQuery.Execute(10000);
+			DocumentList docList = docQuery.Execute(100000);
 			
-			Keyword secKeyword = keyType.CreateKeyword(secVal);
+			
 			foreach(Document newDoc in docList)
 			{
-				foreach(KeywordRecord keywordRecord in newDoc.KeywordRecords)
-		        {
-					foreach(Keyword keyword in keywordRecord.Keywords)
-				    {
-						if(keyword.KeywordType.Name==priKey)
-				        {
-							string priGetValToCompare = keyword.IsBlank?string.Empty:keyword.Value.ToString();
-							if(priGetValToCompare.Trim()==priVal.Trim())
-							{
-								using(DocumentLock documentLock = newDoc.LockDocument())
-								{
-									if(documentLock.Status == DocumentLockStatus.LockObtained)
-									{
-										KeywordModifier keymod = newDoc.CreateKeywordModifier();
-										keymod.UpdateKeyword(priKeyword, secKeyword);
-										keymod.ApplyChanges();
-										break;
-									}
-								}
-							}
+				if(primaryDocHandle == newDoc.ID)
+					continue;
+				
+				using(DocumentLock documentLock = newDoc.LockDocument())
+				{
+					if(documentLock.Status == DocumentLockStatus.LockObtained)
+					{
+						foreach(KeywordRecord keyRec in newDoc.KeywordRecords)
+						{
+							KeywordModifier keymod = newDoc.CreateKeywordModifier();
+							EditableKeywordRecord editKeyRec = keyRec.CreateEditableKeywordRecord();
+							Keyword keyword = editKeyRec.Keywords.Find(priKey);
+							editKeyRec.UpdateKeyword(priKeyword, secKeyword);
+							keymod.UpdateKeywordRecord(editKeyRec);
+							keymod.ApplyChanges();
+							break;
 						}
 					}
 				}
