@@ -49,3 +49,72 @@
             string filename = filenamepath.Substring(filenamepath.LastIndexOf('\\')+1);
             return filename;
         }
+        
+        XmlDocument xmlDoc = new XmlDocument();
+					XmlNode docNode = xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", null);
+					xmlDoc.AppendChild(docNode);
+					
+		            XmlNode rootNode = xmlDoc.CreateElement("Document");
+		            xmlDoc.AppendChild(rootNode);
+
+		            XmlNode applicationIDNode = xmlDoc.CreateElement("ApplicationID");
+		            applicationIDNode.InnerText = "Doc360";
+		            rootNode.AppendChild(applicationIDNode);
+					
+					XmlNode documentClassNode = xmlDoc.CreateElement("DocumentClass");
+		            documentClassNode.InnerText = "u_uhone_pl";
+		            rootNode.AppendChild(documentClassNode);
+					
+					XmlNode dataGroupNode = xmlDoc.CreateElement("DataGroup");
+		            dataGroupNode.InnerText = "uhpl";
+		            rootNode.AppendChild(dataGroupNode);
+					
+					
+					XmlNode indiciesNode = xmlDoc.CreateElement("Indices");
+		            rootNode.AppendChild(indiciesNode);
+					
+					
+					XmlNode indexFieldNode = xmlDoc.CreateElement("IndexField");
+		            indiciesNode.AppendChild(indexFieldNode);
+					
+					
+					XmlNode idxNameNode = xmlDoc.CreateElement("idxName");
+		            idxNameNode.InnerText = "u_claim_nbr";
+		            indexFieldNode.AppendChild(idxNameNode);			
+					
+					XmlNode idxValueNode = xmlDoc.CreateElement("idxValue");
+		            idxValueNode.InnerText = claimNumber;
+		            indexFieldNode.AppendChild(idxValueNode);
+					
+					
+					indexFieldNode = xmlDoc.CreateElement("IndexField");
+		            indiciesNode.AppendChild(indexFieldNode);
+					idxNameNode = xmlDoc.CreateElement("idxName");
+		            idxNameNode.InnerText = "u_doc_dt";
+		            indexFieldNode.AppendChild(idxNameNode);			
+					
+					idxValueNode = xmlDoc.CreateElement("idxValue");
+		            idxValueNode.InnerText = docDate;
+		            indexFieldNode.AppendChild(idxValueNode);
+					
+					indexFieldNode = xmlDoc.CreateElement("IndexField");
+		            indiciesNode.AppendChild(indexFieldNode);
+					idxNameNode = xmlDoc.CreateElement("idxName");
+		            idxNameNode.InnerText = "u_src_sys";
+		            indexFieldNode.AppendChild(idxNameNode);			
+					
+					idxValueNode = xmlDoc.CreateElement("idxValue");
+		            idxValueNode.InnerText = "ONBASE";
+		            indexFieldNode.AppendChild(idxValueNode);
+					
+					indexFieldNode = xmlDoc.CreateElement("IndexField");
+		            indiciesNode.AppendChild(indexFieldNode);
+					idxNameNode = xmlDoc.CreateElement("idxName");
+		            idxNameNode.InnerText = "u_ltr_typ";
+		            indexFieldNode.AppendChild(idxNameNode);			
+					
+					idxValueNode = xmlDoc.CreateElement("idxValue");
+		            idxValueNode.InnerText = letterType;
+		            indexFieldNode.AppendChild(idxValueNode);
+
+		            xmlDoc.Save(Location+doc.ID+".metadata");
